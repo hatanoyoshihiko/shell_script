@@ -1,0 +1,73 @@
+#!/bin/bash
+
+# VARIABLES
+FROM=git_info@localhost
+MAIL_TO=ansible@localhost
+TARGET_DIR=/etc/httpd
+SERVICE_NAME=httpd
+
+# FUNCTIONS
+CHECK_COMPARE() {
+  ls -Rl --time-style=+%Y%m%d_%H:%M:%S ${TARGET_DIR} | awk '{print $1,$4,$5,$6,$7}' | md5sum
+  return 0
+}
+FAILED_SERVICE() {
+  echo "${SERVICE_NAME} is down." | mail -s "${SERVICE_NAME} IS DOWN" -r ${FROM} ${MAIL_TO}
+  return 0
+}
+FAILED_GIT() {
+  echo "git pull is failed." | mail -s "GIT PULL IS FAILED" -r ${FROM} ${MAIL_TO}
+  return 0
+}
+FAILED_HTTPD_CHECK() {
+  echo "check httpd -t result." | mail -s "HTTPD SYNTAX ERROR" -r ${FROM} ${MAIL_TO}
+  return 0
+}
+FAILED_UNKNOWN() {
+  echo "An unknown error has occurred." | mail -s "UNKNOWN ERROR" -r ${FROM} ${MAIL_TO}
+  return 0
+}
+
+# PROCESS START
+## HTTPD STATUS CHECK
+systemctl is-active ${SERVICE_NAME}.service > /dev/null 2>&1
+SERVICE_STATUS=$?
+
+## COMPARE BEFORE AND AFTER FILE CHANGE
+cd ${TARGET_DIR}
+BEFORE_CHECK=$(CHECK_COMPARE)
+/usr/bin/git --git-dir=.git pull > /dev/null 2>&1
+GIT_RESULT=$?
+AFTER_CHECK=$(CHECK_COMPARE)
+
+## HTTPD CONF SYNTAX CHECK
+/usr/sbin/httpd -t > /dev/null 2>&1
+SYNTAX_CHECK=$?
+
+## IF PROCESS WAS SUCCCESS , but 
+if [ "${SERVICE_STATUS}" != 0 ]; then
+  FAILED_SERVICE
+  logger "<critical>: ${SERVICE_NAME} service is not started"
+  exit 1
+elif [ "${SERVICE_STATUS}" = 0 ]; then
+  if [ "${GIT_RESULT}" = 0 ] && [ "${SYNTAX_CHECK}" = 0 ] && [ "${BEFORE_CHECK}" != "${AFTER_CHECK}" ]; then
+    systemctl reload ${SERVICE_NAME}.service
+    logger "<info> [git hooks]: ${SERVICE_NAME} repository was updated."
+    exit 0
+  elif [ "${GIT_RESULT}" != 0 ]; then
+    FAILED_GIT
+    logger "<warn> [git hooks]: git pull was failed."
+    exit 1
+  elif [ "${SYNTAX_CHECK}" != 0 ]; then
+    FAILED_HTTPD_CHECK
+    logger "<warn> [git hooks]: syntax error. check ${SERVICE_NAME} -t."
+    exit 1
+  elif [ "${BEFORE_CHECK}" = "${AFTER_CHECK}" ]; then
+    logger "<info> [git hooks]: ${SERVICE_NAME} conf update is nothing."
+    exit 0
+  else
+    FAILED_UNKNOWN
+    exit 1
+  fi
+else :
+fi

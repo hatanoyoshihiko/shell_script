@@ -1,6 +1,6 @@
 #/bin/bash
 
-packages="vim bash-completion langpacks-ja chrony vim glibc-langpack-ja"
+packages="vim bash-completion chrony vim language-pack-ja-base language-pack-ja"
 os_dist=`cat /etc/os-release`
 
 echo "alias nocomment=\"grep -v '^\s*\(#\|$\)'\"" >> ~/.bashrc
@@ -15,6 +15,8 @@ if [[ "$os_dist" =~ "CentOS" ]] || [[ "$os_dist" =~ "AlmaLinux" ]] ; then
 	sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/selinux/config
 elif [[ "$os_dist" =~ "Ubuntu" ]] ; then
 	apt install -y $packages
+	systemctl stop {ufw,apparmor}.service
+	systemctl disable {ufw,apparmor}.service
 else
 	:
 fi

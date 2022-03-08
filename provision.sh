@@ -1,7 +1,8 @@
 #/bin/bash
 
 # env
-packages="vim bash-completion chrony vim language-pack-ja-base language-pack-ja"
+rhel_packages="vim-enhanced bash-completion chrony langpacks-ja"
+debian_packages="vim bash-completion chrony language-pack-ja"
 os_dist=`cat /etc/os-release`
 
 # .bashrc
@@ -11,7 +12,7 @@ source ~/.bashrc
 
 # service control and packages install
 if [[ "$os_dist" =~ "CentOS" ]] || [[ "$os_dist" =~ "AlmaLinux" ]] ; then
-	dnf install -y $packages
+	dnf install -y $rhel_packages
 	systemctl stop firewalld.service
 	systemctl disable firewalld.service
 	setenforce 0
@@ -27,8 +28,7 @@ fi
 # set locale and time sync
 localectl set-locale LANG=ja_JP.utf8
 timedatectl set-local-rtc 0
-ln -sf /usr/share/zoneinfo/Asia/Tokyo /etc/localtime
-locale
+timedatectl set-timezone Asia/Tokyo
 chronyc online && chronyc sources
 
 # os update

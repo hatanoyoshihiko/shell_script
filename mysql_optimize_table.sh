@@ -18,8 +18,9 @@ tables=$(mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -Bse "SHOW
 
 # 各テーブルに対してOPTIMIZE TABLEを実行
 for table in $tables; do
-  echo "Optimizing table: $table"
-  mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -e "OPTIMIZE TABLE \`$table\`;"
+  log_info "Analyzing table: $table"
+  result=$(mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -e "ANALYZE TABLE \`$table\`;")
+  log_info "$result"
 done
 
 log_info "Maintenance completed on database: $DB_NAME"
